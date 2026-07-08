@@ -268,6 +268,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let filesMenu = NSMenu()
         filesMenu.autoenablesItems = false
+        filesMenu.addItem(action("Install default keybindings (~/.skhdrc)", #selector(installDefaultSkhdrc)))
+        filesMenu.addItem(action("Install default yabai config (~/.yabairc)", #selector(installDefaultYabairc)))
+        filesMenu.addItem(.separator())
         filesMenu.addItem(action("Edit ~/.yabairc", #selector(editYabairc)))
         filesMenu.addItem(action("Edit ~/.skhdrc", #selector(editSkhdrc)))
         menu.addItem(submenu("Config files", filesMenu))
@@ -387,6 +390,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func windowZoom() { Yabai.message(["window", "--toggle", "zoom-fullscreen"]) }
     @objc private func windowSplit() { Yabai.message(["window", "--toggle", "split"]) }
     @objc private func windowSticky() { Yabai.message(["window", "--toggle", "sticky"]) }
+
+    @objc private func installDefaultSkhdrc() {
+        installConfig(tool: "skhd", filename: ".skhdrc", contents: DefaultConfigs.skhdrc) {
+            _ = Shell.run(Tools.skhd, ["--restart-service"])
+        }
+    }
+
+    @objc private func installDefaultYabairc() {
+        installConfig(tool: "yabai", filename: ".yabairc", contents: DefaultConfigs.yabairc) {
+            _ = Shell.run(Tools.yabai, ["--restart-service"])
+        }
+    }
+
+    /// Writes a bundled default config to ~/<filename>, backing up any existing
+    /// file after confirmation, then runs `activate` (restart the relevant
+    /// service) and refreshes the cached state so the menu reflects the change.
+    private func installConfig(tool: String, filename: String, contents: String, activate: () -> Void) {
+        let path = NSHomeDirectory() + "/" + filename
+
+        if ConfigInstaller.exists(at: path) {
+            let confirm = NSAlert()
+            confirm.messageText = "~/\(filename) already exists"
+            confirm.informativeText = "Back it up and replace it with the defaults?"
+            confirm.addButton(withTitle: "Back up & Replace")
+            confirm.addButton(withTitle: "Cancel")
+            NSApp.activate(ignoringOtherApps: true)
+            guard confirm.runModal() == .alertFirstButtonReturn else { return }
+        }
+
+        do {
+            let backup = try ConfigInstaller.write(contents, to: path, timestamp: Self.backupTimestamp())
+            activate()
+            refresh()
+
+            let done = NSAlert()
+            done.messageText = "Installed ~/\(filename)"
+            var notes: [String] = []
+            if let backup { notes.append("Your previous file was backed up to:\n\(backup)") }
+            notes.append("On first launch macOS may ask you to grant Accessibility permission to \(tool).")
+            done.informativeText = notes.joined(separator: "\n\n")
+            done.addButton(withTitle: "OK")
+            NSApp.activate(ignoringOtherApps: true)
+            done.runModal()
+        } catch {
+            let failure = NSAlert()
+            failure.messageText = "Could not install ~/\(filename)"
+            failure.informativeText = error.localizedDescription
+            failure.addButton(withTitle: "OK")
+            NSApp.activate(ignoringOtherApps: true)
+            failure.runModal()
+        }
+    }
+
+    /// Filesystem-safe timestamp for backup filenames, e.g. "20260708-142530".
+    private static func backupTimestamp() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter.string(from: Date())
+    }
 
     @objc private func editYabairc() { openInEditor(NSHomeDirectory() + "/.yabairc") }
     @objc private func editSkhdrc() { openInEditor(NSHomeDirectory() + "/.skhdrc") }
