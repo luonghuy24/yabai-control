@@ -393,20 +393,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func installDefaultSkhdrc() {
         installConfig(tool: "skhd", filename: ".skhdrc", contents: DefaultConfigs.skhdrc) {
-            _ = Shell.run(Tools.skhd, ["--restart-service"])
+            // On a fresh Mac the service file isn't installed yet, and
+            // `--restart-service` aborts in that case — use `--start-service`
+            // (which installs + bootstraps) unless skhd is already running.
+            let command = Yabai.skhdRunning ? "--restart-service" : "--start-service"
+            return Shell.run(Tools.skhd, [command]).status == 0
         }
     }
 
     @objc private func installDefaultYabairc() {
         installConfig(tool: "yabai", filename: ".yabairc", contents: DefaultConfigs.yabairc) {
-            _ = Shell.run(Tools.yabai, ["--restart-service"])
+            let command = Yabai.isRunning ? "--restart-service" : "--start-service"
+            return Shell.run(Tools.yabai, [command]).status == 0
         }
     }
 
     /// Writes a bundled default config to ~/<filename>, backing up any existing
     /// file after confirmation, then runs `activate` (restart the relevant
     /// service) and refreshes the cached state so the menu reflects the change.
-    private func installConfig(tool: String, filename: String, contents: String, activate: () -> Void) {
+    private func installConfig(tool: String, filename: String, contents: String, activate: () -> Bool) {
         let path = NSHomeDirectory() + "/" + filename
 
         if ConfigInstaller.exists(at: path) {
@@ -421,14 +426,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         do {
             let backup = try ConfigInstaller.write(contents, to: path, timestamp: Self.backupTimestamp())
-            activate()
+            let activated = activate()
             refresh()
 
             let done = NSAlert()
             done.messageText = "Installed ~/\(filename)"
             var notes: [String] = []
             if let backup { notes.append("Your previous file was backed up to:\n\(backup)") }
-            notes.append("On first launch macOS may ask you to grant Accessibility permission to \(tool).")
+            if activated {
+                notes.append("On first launch macOS may ask you to grant Accessibility permission to \(tool).")
+            } else {
+                notes.append("The \(tool) service could not be started automatically. Make sure \(tool) is installed (via Homebrew), then use this menu item again.")
+            }
             done.informativeText = notes.joined(separator: "\n\n")
             done.addButton(withTitle: "OK")
             NSApp.activate(ignoringOtherApps: true)
@@ -462,7 +471,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func restartYabai() {
         state.yabaiRunning = true
-        _ = Shell.run(Tools.yabai, ["--restart-service"])
+        // "Start yabai" (when stopped) needs --start-service; --restart-service
+        // aborts if the service file isn't installed yet.
+        _ = Shell.run(Tools.yabai, [Yabai.isRunning ? "--restart-service" : "--start-service"])
         refresh()
     }
 
