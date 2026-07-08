@@ -1,17 +1,14 @@
-import Testing
 import YabaiControlCore
 
-@Suite struct SkhdParserTests {
-    @Test func parsesKeysAndSkipsCommentsBlanksAndModes() {
-        let content = """
-        # a comment
+func runSkhdParserTests(_ t: TestRunner) {
+    let content = """
+    # a comment
 
-        alt - h : yabai -m window --focus west
-        :: default
-        """
-        let bindings = SkhdParser.bindings(from: content)
-        #expect(bindings.count == 1)
-        #expect(bindings[0].keys == "alt - h")
-        #expect(bindings[0].action == "yabai -m window --focus west")
-    }
+    alt - h : yabai -m window --focus west
+    :: default
+    """
+    let bindings = SkhdParser.bindings(from: content)
+    t.check(bindings.count == 1, "parses 1 binding; skips comment/blank/mode lines")
+    t.check(bindings.first?.keys == "alt - h", "keys parsed correctly")
+    t.check(bindings.first?.action == "yabai -m window --focus west", "action parsed correctly")
 }

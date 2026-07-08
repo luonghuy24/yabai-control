@@ -14,25 +14,12 @@ let package = Package(
             dependencies: ["YabaiControlCore"],
             path: "Sources/YabaiControl"
         ),
-        .testTarget(
+        // Framework-free test runner (XCTest/Swift Testing unavailable in CLT-only toolchain).
+        // Run with: swift run YabaiControlCoreTests
+        .executableTarget(
             name: "YabaiControlCoreTests",
             dependencies: ["YabaiControlCore"],
-            path: "Tests/YabaiControlCoreTests",
-            swiftSettings: [
-                .unsafeFlags([
-                    "-F", "/Library/Developer/CommandLineTools/Library/Developer/Frameworks/"
-                ])
-            ],
-            linkerSettings: [
-                .unsafeFlags([
-                    "-F", "/Library/Developer/CommandLineTools/Library/Developer/Frameworks/",
-                    "-framework", "Testing",
-                    "-Xlinker", "-rpath",
-                    "-Xlinker", "/Library/Developer/CommandLineTools/Library/Developer/Frameworks/",
-                    "-Xlinker", "-rpath",
-                    "-Xlinker", "/Library/Developer/CommandLineTools/Library/Developer/usr/lib/"
-                ])
-            ]
+            path: "Tests/YabaiControlCoreTests"
         )
     ]
 )
