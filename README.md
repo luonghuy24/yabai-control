@@ -84,5 +84,4 @@ build.sh              Builds and (optionally) installs the .app bundle
 
 ## License
 
-No license specified yet — all rights reserved by the author unless a `LICENSE` file
-is added.
+Released under the [MIT License](LICENSE) © 2026 Harry Nguyen.
