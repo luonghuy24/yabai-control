@@ -13,3 +13,5 @@ DerivedData/
 
 # Build output
 dist/
+/main
+*.swiftmodule
